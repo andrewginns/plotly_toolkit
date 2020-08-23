@@ -2,7 +2,8 @@
 Repository for various plotting functions using plotly.
 
 ## Waterfall Plot
-* Allows for visulisation of data using a waterfall plot.
+[Waterfall notebook](./notebooks/dyn_waterfall_viz.ipynb)
+* Allows for visualisation of data using a waterfall plot.
 * Dropdown selector allows for data split by timestamps to be displayed dynamically.
 ![Waterfall Plot](./example_plots/waterfall_example.png)
 
