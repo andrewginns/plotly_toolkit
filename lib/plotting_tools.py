@@ -1,5 +1,7 @@
 import numpy as np
 import plotly.graph_objects as go
+import plotly.figure_factory as ff
+from datetime import datetime, timedelta 
 
 def gen_plotly_dict(selection_list, df, dropdown_tag, precision=None):
     """
@@ -149,3 +151,134 @@ def create_dropdown_waterfall(df, dropdown_tag, measures, initial_data, precisio
     # Preprocess data to pass to plotting function
     x_labels, y_values, disp_values = preprocess_data(initial_data, columns_ar, dropdown_tag, precision=precision)
     plot_waterfall(measures, dropdown_tag, x_labels, y_values, disp_values, dicts_ar, title=title)
+
+
+def extract_daterange(df, start_date, end_date):
+    """
+    Function that extracts rows of a dataframe between two dates.
+
+    Selects rows that matcha a > and <= comparison to start and end dates.
+
+    Args:
+        df (pandas.core.frame.DataFrame): Holds the data to plot.
+        start_date (str): Date to get rows after.
+        start_date (str): Date to stop getting rows after (inclusive).
+
+    Returns:
+        selected_df (pandas.core.frame.DataFrame): Matching rows.
+    """
+    mask = (df.index > start_date) & (df.index <= end_date)
+    selected_df = df.loc[mask]
+    return selected_df
+
+
+def create_date_ranges(target_date, date_range):
+    """
+    Function that creates a range of dates around a given date.
+
+    For a given day the function generates a date x number of days before and then x number of days after and 2x days after.
+    This is returned as a tuple holding 4 dates.
+
+    Args:
+        target_date (str): Date to generate boundaries around.
+        date_range (int): x number of days to generate boundaries with.
+
+    Returns:
+        (tuple): tuple containing:
+
+            start_date_1 (str): target_date - x days
+            end_date_1 (str): target_date
+            start_date_2 (str): target_date + x days
+            end_date_2 (str): target_date + 2x days
+    """
+    f_date = datetime.strptime(target_date, '%Y-%m-%d')
+    start_date_1 = f_date - timedelta(days=date_range)
+    end_date_1 = f_date
+    
+    start_date_2 = f_date + timedelta(days=date_range)
+    end_date_2 = f_date + timedelta(days=date_range*2)
+    return start_date_1, end_date_1, start_date_2, end_date_2
+
+
+def plot_change(x1, x2, tag, change, date, group_labels, bn_size):
+    """
+    Function that plots two datasets on either side of a date against each other.
+
+    Uses a Plotly distplot to compare two pandas series on either side of a date on the same axis.
+
+    Args:
+        x1 (pandas.core.series.Series): Dataset 1.
+        x2 (pandas.core.series.Series): Dataset 2.
+        tag (str): Name of the datapoint to use in the plot title.
+        change (str): Event that the two datasets are split on.
+        date (str): Date of the event that the two datasets are split on.
+        group_labels (list): Legend entries for the plot.
+        bn_size (float): Bin size for the plot
+    
+    Returns:
+        None
+    """
+    print(f'Set 1 points: {x1.shape}\nSet 2 points points: {x2.shape} ')
+    hist_data = [x1, x2]
+
+    fig = ff.create_distplot(hist_data, group_labels, bin_size = bn_size)
+    fig.update_layout(title_text=f'{tag} before and after {change} on {date}')
+    fig.show()
+
+
+def get_dates(date_ar, d_format):
+    """
+    Function that converts a list of dates into a month abbreviation and year string.
+
+    Uses the known date format to apply strptime and parse the human friendly month and year from a given list of dates.
+
+    Args:
+        date_ar (list): Dates to convert.
+        d_format (str): Date format of the input dates.
+    
+    Returns:
+        human_dates (list): Contains the converted dates as strings.
+    """
+    human_dates = []
+    for date in date_ar:
+        str_date = datetime.strptime(date, d_format).strftime("%b") + ' ' + str(datetime.strptime(date, d_format).year)
+        human_dates.append(str_date)
+    return human_dates
+
+
+def plot_compare_timeframes(df, date1, date2, tag, filter_dict, tag_dict, date_dict, bin_dict, date_labels, date_range):
+    """
+    Function that plots two datasets from different dates against each other.
+
+    Uses a Plotly distplot to compare two pandas series each representing a timeperiod on the same axis.
+
+    Args:
+        df (pandas.core.frame.DataFrame): Holds the source data to plot.
+        date1 (str): The first date to extract data around.
+        date2 (str): The second date to extract data around.
+        tag (str): The name of the column to plot data from.
+        filter_dict (dict): The filter conditions for various tags.
+        tag_dict (dict): The nice names for each tag string.
+        date_dict (dict): The events on each date.
+        bin_dict (dict): The bin sizes for each tag
+        date_labels (list): The abbreviated dates to use in legend.
+        date_range (int): The number of dayes around each date to extract data for.
+    
+    Returns:
+        None
+    """
+    date_ar = create_date_ranges(date1, date_range)
+    date_df_1 = extract_daterange(df, date_ar[2], date_ar[3])
+
+    date_ar = create_date_ranges(date2, date_range)
+    date_df_2 = extract_daterange(df, date_ar[2], date_ar[3])
+
+    # filters
+    b_tag_df = date_df_1[tag]
+    b_tag_df = b_tag_df[b_tag_df >= filter_dict[tag]]
+
+    a_tag_df = date_df_2[tag]
+    a_tag_df = a_tag_df[a_tag_df >= filter_dict[tag]]
+
+    plot_change(b_tag_df.dropna(), a_tag_df.dropna(), tag_dict[tag], date_dict['comp'], date2, date_labels, bin_dict[tag])
+    

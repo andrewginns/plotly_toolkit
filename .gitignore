@@ -1,2 +1,4 @@
 notebooks/.ipynb_checkpoints/
 lib/__pycache__/
+test_data/.DS_Store
+.DS_Store
